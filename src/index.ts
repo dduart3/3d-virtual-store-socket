@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { setupChatHandlers } from './handlers/chatHandlers';
 import { setupAvatarHandlers } from './handlers/avatarHandlers';
 import { UserManager } from './managers/UserManager';
+import compression from 'compression';
 
 // Load environment variables
 dotenv.config();
@@ -13,13 +14,25 @@ dotenv.config();
 // Create Express app and HTTP server
 const app = express();
 app.use(cors());
+app.use(compression() as any); // Add compression for HTTP responses
+
 const server = http.createServer(app);
 
-// Create Socket.IO server
+// Create Socket.IO server with compression
 const io = new Server(server, {
   cors: {
     origin: process.env.CLIENT_URL || '*',
     methods: ['GET', 'POST']
+  },
+  // Enable WebSocket compression
+  perMessageDeflate: {
+    threshold: 1024, // Only compress messages larger than 1KB
+    zlibDeflateOptions: {
+      chunkSize: 16 * 1024 // Use larger chunks for better compression
+    },
+    zlibInflateOptions: {
+      chunkSize: 16 * 1024
+    }
   }
 });
 
