@@ -70,37 +70,4 @@ export class BinaryProtocol {
       console.error('Error decoding avatar update:', error);
       throw new Error(`Failed to decode avatar update: ${error instanceof Error ? error.message : String(error)}`);
     }
-  }  
-  // Helper function to convert UUID string to bytes
-  static uuidToBytes(uuid: string): Uint8Array {
-    // Remove hyphens
-    const hexString = uuid.replace(/-/g, '');
-    
-    // Convert hex string to bytes
-    const bytes = new Uint8Array(16);
-    for (let i = 0; i < 16; i++) {
-      bytes[i] = parseInt(hexString.substring(i * 2, i * 2 + 2), 16);
-    }
-    
-    return bytes;
-  }
-  
-  // Helper function to convert bytes to UUID string
-  static bytesToUuid(bytes: Uint8Array): string {
-    // Convert bytes to hex string
-    let hexString = '';
-    for (let i = 0; i < 16; i++) {
-      const hex = bytes[i].toString(16).padStart(2, '0');
-      hexString += hex;
-    }
-    
-    // Add hyphens to format as UUID
-    return [
-      hexString.substring(0, 8),
-      hexString.substring(8, 12),
-      hexString.substring(12, 16),
-      hexString.substring(16, 20),
-      hexString.substring(20, 32)
-    ].join('-');
-  }
-}
+  }}
