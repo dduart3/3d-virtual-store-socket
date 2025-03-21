@@ -8,6 +8,7 @@ import { setupAvatarHandlers } from './handlers/avatarHandlers';
 import { setupOnlineUsersHandlers } from './handlers/onlineUsersHandlers';
 import { UserManager } from './managers/UserManager';
 import compression from 'compression';
+import { setupDoorHandlers } from './handlers/doorHandlers';
 
 // Load environment variables
 dotenv.config();
@@ -105,6 +106,7 @@ io.on('connection', (socket) => {
   setupChatHandlers(io, socket, userManager);
   setupAvatarHandlers(io, socket, userManager);
   setupOnlineUsersHandlers(io, socket, userManager);
+  setupDoorHandlers(io, socket, userManager);
   
   // Handle disconnection
   socket.on('disconnect', () => {
