@@ -5,6 +5,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { setupChatHandlers } from './handlers/chatHandlers';
 import { setupAvatarHandlers } from './handlers/avatarHandlers';
+import { setupOnlineUsersHandlers } from './handlers/onlineUsersHandlers';
 import { UserManager } from './managers/UserManager';
 import compression from 'compression';
 
@@ -92,10 +93,18 @@ io.on('connection', (socket) => {
   
   // Broadcast updated user count
   io.emit('users:count', userManager.getUserCount());
+
+    // Broadcast updated online users list to all clients
+    io.emit('online_users', userManager.getAllUsers().map(user => ({
+      userId: user.id,
+      username: user.username,
+      avatarUrl: user.avatarUrl
+    })));
   
   // Set up feature-specific handlers
   setupChatHandlers(io, socket, userManager);
   setupAvatarHandlers(io, socket, userManager);
+  setupOnlineUsersHandlers(io, socket, userManager);
   
   // Handle disconnection
   socket.on('disconnect', () => {
@@ -121,6 +130,13 @@ io.on('connection', (socket) => {
       
       // Broadcast updated user count
       io.emit('users:count', userManager.getUserCount());
+
+       // Broadcast updated online users list
+       io.emit('online_users', userManager.getAllUsers().map(user => ({
+        userId: user.id,
+        username: user.username,
+        avatarUrl: user.avatarUrl
+      })));
     }
   });
 });
