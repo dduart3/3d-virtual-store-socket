@@ -342,7 +342,9 @@ export function setupJukeboxHandlers(
   ];
  
   const agent = ytdl.createProxyAgent({
-    uri: "http://NMage0c0fdE5adu:OCsPzE59wpvj0LU@92.113.81.50:45262",
+    uri: "http://NMage0c0fdE5adu:OCsPzE59wpvj0LU@92.113.81.50:45262",requestTls:{
+      rejectUnauthorized: false,
+    }
   });
 
   // Send current jukebox state when a user connects
@@ -493,7 +495,6 @@ export function setupJukeboxHandlers(
       const videoStream = ytdl(videoUrl, {
         format: format,
         agent,
-        
       });
 
       const videoWriteStream = fs.createWriteStream(tempVideoFile);
