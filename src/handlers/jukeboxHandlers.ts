@@ -458,22 +458,15 @@ export function setupJukeboxHandlers(
       console.log(`Descargando canción de YouTube: ${videoId}`);
 
       // Get video info
-      const info = await ytdl.getInfo(videoUrl, { agent, requestOptions:{
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
-          "Accept-Language": "es-ES,es;q=0.9,en-US;q=0.8,en;q=0.7",
-          "Accept-Encoding": "gzip, deflate, br",
-          "Accept": 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-          'Referer': 'https://www.youtube.com/'
-        }
-      } });
+      const info = await ytdl.getInfo(videoUrl, { agent });
 
       console.log("Formatos disponibles", info.formats.length);
      
       // Find 360p format with both audio and video
       const format = info.formats.find(format =>
         format.hasAudio &&
-        format.hasVideo // &&format.qualityLabel === '360p'
+        format.hasVideo &&
+        format.qualityLabel === '360p'
       );
      
       if (!format) {
