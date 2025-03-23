@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 import youtubeDl from "youtube-dl-exec";
 import ffmpegPath from "ffmpeg-static";
+const cookiesFile = path.join(__dirname, '../../cookies.txt');
 
 
 // Create music directory if it doesn't exist
@@ -204,6 +205,7 @@ export function setupJukeboxHandlers(
         callHome: false,
         preferFreeFormats: true,
         youtubeSkipDashManifest: true,
+        cookies: cookiesFile
       }) as YouTubeDlResponse;
 
       // Download audio directly as MP3 using youtube-dl-exec
@@ -216,6 +218,7 @@ export function setupJukeboxHandlers(
         callHome: false,
         preferFreeFormats: true,
         youtubeSkipDashManifest: true,
+        cookies: cookiesFile,
         ...(ffmpegPath ? { ffmpegLocation: ffmpegPath } : {}), // Only add if not null
       });
   
