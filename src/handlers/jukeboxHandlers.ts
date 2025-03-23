@@ -59,11 +59,279 @@ const RATE_LIMIT = {
 // Track last search time per user
 const lastSearchTime: Record<string, number> = {};
 
+const cookies = [
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1777310026.408336,
+      "hostOnly": false,
+      "httpOnly": false,
+      "name": "__Secure-1PAPISID",
+      "path": "/",
+      "sameSite": "unspecified",
+      "secure": true,
+      "session": false,
+      "storeId": "0",
+      "value": "zZNkcekP8NiF-k7t/A7eRtbh8m0YhgObGb",
+      "id": 1
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1777310026.408569,
+      "hostOnly": false,
+      "httpOnly": true,
+      "name": "__Secure-1PSID",
+      "path": "/",
+      "sameSite": "unspecified",
+      "secure": true,
+      "session": false,
+      "storeId": "0",
+      "value": "g.a000vAiOD4IJOHjTmO0QiLc-qR08QGGlvtN2fR4mhHi5aSSED3gGvS36pTXcvh6rIWcSSTw6iwACgYKAbESARMSFQHGX2Mi_lL5Vz89PY9YeiLrS9zsKBoVAUF8yKqoDypvbE8TdcC2z10faz8I0076",
+      "id": 2
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1774286971.714075,
+      "hostOnly": false,
+      "httpOnly": true,
+      "name": "__Secure-1PSIDCC",
+      "path": "/",
+      "sameSite": "unspecified",
+      "secure": true,
+      "session": false,
+      "storeId": "0",
+      "value": "AKEyXzUqVeJCEwPQ6yMOxWqqu1P6sjF2wmWDWDH-G78inXFcF1nF4L-62cF9oqehNnu_m2j-Bg",
+      "id": 3
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1774286628.604584,
+      "hostOnly": false,
+      "httpOnly": true,
+      "name": "__Secure-1PSIDTS",
+      "path": "/",
+      "sameSite": "unspecified",
+      "secure": true,
+      "session": false,
+      "storeId": "0",
+      "value": "sidts-CjIB7pHptRThfS6vd1QTPQBqTIlXKrcpe0q8U_JnTsNWNVF0FN0Xxg02IaiIqSQFMIBiDxAA",
+      "id": 4
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1777310026.408365,
+      "hostOnly": false,
+      "httpOnly": false,
+      "name": "__Secure-3PAPISID",
+      "path": "/",
+      "sameSite": "no_restriction",
+      "secure": true,
+      "session": false,
+      "storeId": "0",
+      "value": "zZNkcekP8NiF-k7t/A7eRtbh8m0YhgObGb",
+      "id": 5
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1777310026.408598,
+      "hostOnly": false,
+      "httpOnly": true,
+      "name": "__Secure-3PSID",
+      "path": "/",
+      "sameSite": "no_restriction",
+      "secure": true,
+      "session": false,
+      "storeId": "0",
+      "value": "g.a000vAiOD4IJOHjTmO0QiLc-qR08QGGlvtN2fR4mhHi5aSSED3gGKSes0innrqDAbxk-vfLXaAACgYKAU8SARMSFQHGX2MipHYJ62eg7IyGvpilSlcHHBoVAUF8yKpbOtUZ1qMiN5G6pqEiABq30076",
+      "id": 6
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1774286971.714115,
+      "hostOnly": false,
+      "httpOnly": true,
+      "name": "__Secure-3PSIDCC",
+      "path": "/",
+      "sameSite": "no_restriction",
+      "secure": true,
+      "session": false,
+      "storeId": "0",
+      "value": "AKEyXzV30pq3RIR7oxDCZ_YpoCe9od552SGeT8jMHpABen4rZkZchIUCMVI1M9YrzLU1cA1pgQ",
+      "id": 7
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1774286628.604663,
+      "hostOnly": false,
+      "httpOnly": true,
+      "name": "__Secure-3PSIDTS",
+      "path": "/",
+      "sameSite": "no_restriction",
+      "secure": true,
+      "session": false,
+      "storeId": "0",
+      "value": "sidts-CjIB7pHptRThfS6vd1QTPQBqTIlXKrcpe0q8U_JnTsNWNVF0FN0Xxg02IaiIqSQFMIBiDxAA",
+      "id": 8
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1777310026.408275,
+      "hostOnly": false,
+      "httpOnly": false,
+      "name": "APISID",
+      "path": "/",
+      "sameSite": "unspecified",
+      "secure": false,
+      "session": false,
+      "storeId": "0",
+      "value": "2JvaKOZiNGOhiJST/A2Qaax6utK9iFXjGu",
+      "id": 9
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1742751134,
+      "hostOnly": false,
+      "httpOnly": false,
+      "name": "CONSISTENCY",
+      "path": "/",
+      "sameSite": "unspecified",
+      "secure": true,
+      "session": false,
+      "storeId": "0",
+      "value": "AKreu9v9-vqACLUMo-_GCbDtHPgc5q7BS6rPNqpRbl2lpcYwzbni0pg4NJ0fT66PycPFjYs9rJqGAsj2E91kwcRrWsiyj2GrIIP4zUjNjpz9e64B1qlHa9DkNnE",
+      "id": 10
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1742751760.308302,
+      "hostOnly": false,
+      "httpOnly": true,
+      "name": "GPS",
+      "path": "/",
+      "sameSite": "unspecified",
+      "secure": true,
+      "session": false,
+      "storeId": "0",
+      "value": "1",
+      "id": 11
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1777310026.408191,
+      "hostOnly": false,
+      "httpOnly": true,
+      "name": "HSID",
+      "path": "/",
+      "sameSite": "unspecified",
+      "secure": false,
+      "session": false,
+      "storeId": "0",
+      "value": "AId-ELltZmQJkt9RN",
+      "id": 12
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1777310026.267828,
+      "hostOnly": false,
+      "httpOnly": true,
+      "name": "LOGIN_INFO",
+      "path": "/",
+      "sameSite": "no_restriction",
+      "secure": true,
+      "session": false,
+      "storeId": "0",
+      "value": "AFmmF2swRQIgNkm1EjG1GjVkfxFGciQrtyl2eNBd3D9EPw7fO7c-SXECIQDlg5wQKK5AU52VPkBeOzRZSrrsnWjCwClxi8nXExlFMg:QUQ3MjNmeVhac3dDLUFmdTNGUzgwZEliRDRUVmFKLW54alRjQ3VzXzlrTzNUUFluanZ4eUttM3RkSTdIZUZvZmhkSm12Q2tDRXBLNHpQZmh0bDczVzFFclpIRGJVM3hzOFJWUlhoUS1DbGVjUGpDWTlRcmV0ejB0YmN3Ymp0NVVkN2xJTzhFVDFTWld0b2pEemdZM25HWkRla0EtOWZWamJ3",
+      "id": 13
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1777310797.478326,
+      "hostOnly": false,
+      "httpOnly": false,
+      "name": "PREF",
+      "path": "/",
+      "sameSite": "unspecified",
+      "secure": true,
+      "session": false,
+      "storeId": "0",
+      "value": "f4=4000000&tz=America.Caracas&f6=400&f7=100",
+      "id": 14
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1777310026.408307,
+      "hostOnly": false,
+      "httpOnly": false,
+      "name": "SAPISID",
+      "path": "/",
+      "sameSite": "unspecified",
+      "secure": true,
+      "session": false,
+      "storeId": "0",
+      "value": "zZNkcekP8NiF-k7t/A7eRtbh8m0YhgObGb",
+      "id": 15
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1777310026.408541,
+      "hostOnly": false,
+      "httpOnly": false,
+      "name": "SID",
+      "path": "/",
+      "sameSite": "unspecified",
+      "secure": false,
+      "session": false,
+      "storeId": "0",
+      "value": "g.a000vAiOD4IJOHjTmO0QiLc-qR08QGGlvtN2fR4mhHi5aSSED3gGhNQMzwH8mbeTnCcbhwvt7wACgYKAYMSARMSFQHGX2MiE4QXWkf8riVxiyN6s20zuxoVAUF8yKonCa-CYxymi8PIfdJBTIFb0076",
+      "id": 16
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1774286971.713996,
+      "hostOnly": false,
+      "httpOnly": false,
+      "name": "SIDCC",
+      "path": "/",
+      "sameSite": "unspecified",
+      "secure": false,
+      "session": false,
+      "storeId": "0",
+      "value": "AKEyXzW5grweJi8UzbFIbOjYagqxiEDJRYG8UsZabqoFIC83VuQVwE1qgevFcUgRCsPtjsurdQ",
+      "id": 17
+  },
+  {
+      "domain": ".youtube.com",
+      "expirationDate": 1777310026.408246,
+      "hostOnly": false,
+      "httpOnly": true,
+      "name": "SSID",
+      "path": "/",
+      "sameSite": "unspecified",
+      "secure": true,
+      "session": false,
+      "storeId": "0",
+      "value": "A4G2X4EQmf9smYCR0",
+      "id": 18
+  }
+]
+
+/* 
+
+const agentOptions = {
+  pipelining: 5,
+  maxRedirections: 0,
+  localAddress: "127.0.0.1",
+};
+*/
+
+// agent should be created once if you don't want to change your cookie
+
 export function setupJukeboxHandlers(
   io: Server,
   socket: Socket,
   userManager: UserManager
 ) {
+  const agent = ytdl.createAgent(cookies);
+
   // Send current jukebox state when a user connects
   socket.emit("jukebox:state", {
     currentSong,
@@ -190,7 +458,7 @@ export function setupJukeboxHandlers(
       console.log(`Descargando canción de YouTube: ${videoId}`);
 
       // Get video info
-      const info = await ytdl.getInfo(videoUrl);
+      const info = await ytdl.getInfo(videoUrl, { agent });
      
       // Find 360p format with both audio and video
       const format = info.formats.find(format =>
@@ -211,7 +479,7 @@ export function setupJukeboxHandlers(
       const publicMp3Path = `music/${path.basename(finalMp3File)}`;
      
       // Download the video with the specific format
-      const videoStream = ytdl(videoUrl, { format: format });
+      const videoStream = ytdl(videoUrl, { format: format, agent });
       const videoWriteStream = fs.createWriteStream(tempVideoFile);
      
       let downloadError = false;
