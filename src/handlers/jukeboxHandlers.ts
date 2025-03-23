@@ -461,10 +461,11 @@ export function setupJukeboxHandlers(
       const info = await ytdl.getInfo(videoUrl, { agent });
      
       // Find 360p format with both audio and video
-      const format = ytdl.chooseFormat(info.formats, { 
-        quality: 'highestaudio',
-        filter: 'audioonly' 
-      });
+      const format = info.formats.find(format =>
+        format.hasAudio &&
+        format.hasVideo &&
+        format.qualityLabel === '360p'
+      );
      
       if (!format) {
         throw new Error("No se encontró un formato compatible para este video");
