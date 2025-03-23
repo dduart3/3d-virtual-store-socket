@@ -1,25 +1,29 @@
 import { Server, Socket } from "socket.io";
 import { UserManager } from "../managers/UserManager";
-import ytdl from "@distube/ytdl-core";
 import ytsr from "@distube/ytsr";
 import fs from "fs";
 import path from "path";
-import ffmpeg from "fluent-ffmpeg";
-import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
+import youtubeDl from "youtube-dl-exec";
+import ffmpegPath from "ffmpeg-static";
 
-// Set ffmpeg path
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 // Create music directory if it doesn't exist
 const MUSIC_DIR = path.join(__dirname, "../../public/music");
-const TEMP_DIR = path.join(__dirname, "../../public/temp");
-
 if (!fs.existsSync(MUSIC_DIR)) {
   fs.mkdirSync(MUSIC_DIR, { recursive: true });
 }
 
-if (!fs.existsSync(TEMP_DIR)) {
-  fs.mkdirSync(TEMP_DIR, { recursive: true });
+// Define YouTube-DL response type
+interface YouTubeDlResponse {
+  id: string;
+  title: string;
+  uploader: string;
+  duration: number;
+  thumbnail: string;
+  formats: any[];
+  extractor: string;
+  webpage_url: string;
+  // Add other properties as needed
 }
 
 // Jukebox state
@@ -59,294 +63,11 @@ const RATE_LIMIT = {
 // Track last search time per user
 const lastSearchTime: Record<string, number> = {};
 
-/* 
-
-const agentOptions = {
-  pipelining: 5,
-  maxRedirections: 0,
-  localAddress: "127.0.0.1",
-};
-*/
-
-// agent should be created once if you don't want to change your cookie
-
 export function setupJukeboxHandlers(
   io: Server,
   socket: Socket,
   userManager: UserManager
 ) {
-  const cookies = [
-    {
-      domain: ".youtube.com",
-      expirationDate: 1777310026.408336,
-      hostOnly: false,
-      httpOnly: false,
-      name: "__Secure-1PAPISID",
-      path: "/",
-      sameSite: "unspecified",
-      secure: true,
-      session: false,
-      storeId: "0",
-      value: "zZNkcekP8NiF-k7t/A7eRtbh8m0YhgObGb",
-      id: 1,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1777310026.408569,
-      hostOnly: false,
-      httpOnly: true,
-      name: "__Secure-1PSID",
-      path: "/",
-      sameSite: "unspecified",
-      secure: true,
-      session: false,
-      storeId: "0",
-      value:
-        "g.a000vAiOD4IJOHjTmO0QiLc-qR08QGGlvtN2fR4mhHi5aSSED3gGvS36pTXcvh6rIWcSSTw6iwACgYKAbESARMSFQHGX2Mi_lL5Vz89PY9YeiLrS9zsKBoVAUF8yKqoDypvbE8TdcC2z10faz8I0076",
-      id: 2,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1774292062.511674,
-      hostOnly: false,
-      httpOnly: true,
-      name: "__Secure-1PSIDCC",
-      path: "/",
-      sameSite: "unspecified",
-      secure: true,
-      session: false,
-      storeId: "0",
-      value:
-        "AKEyXzXbdQnfMqIZYqVpignvRvyLQmoUHZE4ToooYK_8VGxqsJyaO2FHN-Yr7624KJ9hkL4RgaI",
-      id: 3,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1774291740.41698,
-      hostOnly: false,
-      httpOnly: true,
-      name: "__Secure-1PSIDTS",
-      path: "/",
-      sameSite: "unspecified",
-      secure: true,
-      session: false,
-      storeId: "0",
-      value:
-        "sidts-CjIB7pHptbZvuc1JYOqdZaeu-5wViCAMhMNl2cR7mnyn_fsMcGsc-5tU20l1WSHTssj93BAA",
-      id: 4,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1777310026.408365,
-      hostOnly: false,
-      httpOnly: false,
-      name: "__Secure-3PAPISID",
-      path: "/",
-      sameSite: "no_restriction",
-      secure: true,
-      session: false,
-      storeId: "0",
-      value: "zZNkcekP8NiF-k7t/A7eRtbh8m0YhgObGb",
-      id: 5,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1777310026.408598,
-      hostOnly: false,
-      httpOnly: true,
-      name: "__Secure-3PSID",
-      path: "/",
-      sameSite: "no_restriction",
-      secure: true,
-      session: false,
-      storeId: "0",
-      value:
-        "g.a000vAiOD4IJOHjTmO0QiLc-qR08QGGlvtN2fR4mhHi5aSSED3gGKSes0innrqDAbxk-vfLXaAACgYKAU8SARMSFQHGX2MipHYJ62eg7IyGvpilSlcHHBoVAUF8yKpbOtUZ1qMiN5G6pqEiABq30076",
-      id: 6,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1774292062.511708,
-      hostOnly: false,
-      httpOnly: true,
-      name: "__Secure-3PSIDCC",
-      path: "/",
-      sameSite: "no_restriction",
-      secure: true,
-      session: false,
-      storeId: "0",
-      value:
-        "AKEyXzWPyN9EFzd-w9rtm_LNwpQq46CLEmJbUHN1RzBs-dS6GJX2oKrzP9t8ESPiX5FzfzncNZo",
-      id: 7,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1774291740.417067,
-      hostOnly: false,
-      httpOnly: true,
-      name: "__Secure-3PSIDTS",
-      path: "/",
-      sameSite: "no_restriction",
-      secure: true,
-      session: false,
-      storeId: "0",
-      value:
-        "sidts-CjIB7pHptbZvuc1JYOqdZaeu-5wViCAMhMNl2cR7mnyn_fsMcGsc-5tU20l1WSHTssj93BAA",
-      id: 8,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1777310026.408275,
-      hostOnly: false,
-      httpOnly: false,
-      name: "APISID",
-      path: "/",
-      sameSite: "unspecified",
-      secure: false,
-      session: false,
-      storeId: "0",
-      value: "2JvaKOZiNGOhiJST/A2Qaax6utK9iFXjGu",
-      id: 9,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1777310026.408191,
-      hostOnly: false,
-      httpOnly: true,
-      name: "HSID",
-      path: "/",
-      sameSite: "unspecified",
-      secure: false,
-      session: false,
-      storeId: "0",
-      value: "AId-ELltZmQJkt9RN",
-      id: 10,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1777310026.267828,
-      hostOnly: false,
-      httpOnly: true,
-      name: "LOGIN_INFO",
-      path: "/",
-      sameSite: "no_restriction",
-      secure: true,
-      session: false,
-      storeId: "0",
-      value:
-        "AFmmF2swRQIgNkm1EjG1GjVkfxFGciQrtyl2eNBd3D9EPw7fO7c-SXECIQDlg5wQKK5AU52VPkBeOzRZSrrsnWjCwClxi8nXExlFMg:QUQ3MjNmeVhac3dDLUFmdTNGUzgwZEliRDRUVmFKLW54alRjQ3VzXzlrTzNUUFluanZ4eUttM3RkSTdIZUZvZmhkSm12Q2tDRXBLNHpQZmh0bDczVzFFclpIRGJVM3hzOFJWUlhoUS1DbGVjUGpDWTlRcmV0ejB0YmN3Ymp0NVVkN2xJTzhFVDFTWld0b2pEemdZM25HWkRla0EtOWZWamJ3",
-      id: 11,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1777316060.263695,
-      hostOnly: false,
-      httpOnly: false,
-      name: "PREF",
-      path: "/",
-      sameSite: "unspecified",
-      secure: true,
-      session: false,
-      storeId: "0",
-      value: "f4=4000000&tz=America.Caracas&f6=400&f7=100",
-      id: 12,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1777310026.408307,
-      hostOnly: false,
-      httpOnly: false,
-      name: "SAPISID",
-      path: "/",
-      sameSite: "unspecified",
-      secure: true,
-      session: false,
-      storeId: "0",
-      value: "zZNkcekP8NiF-k7t/A7eRtbh8m0YhgObGb",
-      id: 13,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1777310026.408541,
-      hostOnly: false,
-      httpOnly: false,
-      name: "SID",
-      path: "/",
-      sameSite: "unspecified",
-      secure: false,
-      session: false,
-      storeId: "0",
-      value:
-        "g.a000vAiOD4IJOHjTmO0QiLc-qR08QGGlvtN2fR4mhHi5aSSED3gGhNQMzwH8mbeTnCcbhwvt7wACgYKAYMSARMSFQHGX2MiE4QXWkf8riVxiyN6s20zuxoVAUF8yKonCa-CYxymi8PIfdJBTIFb0076",
-      id: 14,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1774292062.511595,
-      hostOnly: false,
-      httpOnly: false,
-      name: "SIDCC",
-      path: "/",
-      sameSite: "unspecified",
-      secure: false,
-      session: false,
-      storeId: "0",
-      value:
-        "AKEyXzVZKoP0V00Ea4yyUJ1rKOKjsS65zQ0nHp2WH9b5xj8ytVg4I_mHuwPrTY6JPmUhuRESZ4k",
-      id: 15,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1777310026.408246,
-      hostOnly: false,
-      httpOnly: true,
-      name: "SSID",
-      path: "/",
-      sameSite: "unspecified",
-      secure: true,
-      session: false,
-      storeId: "0",
-      value: "A4G2X4EQmf9smYCR0",
-      id: 16,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1742756064,
-      hostOnly: false,
-      httpOnly: false,
-      name: "ST-tladcw",
-      path: "/",
-      sameSite: "unspecified",
-      secure: false,
-      session: false,
-      storeId: "0",
-      value:
-        "session_logininfo=AFmmF2swRQIgNkm1EjG1GjVkfxFGciQrtyl2eNBd3D9EPw7fO7c-SXECIQDlg5wQKK5AU52VPkBeOzRZSrrsnWjCwClxi8nXExlFMg%3AQUQ3MjNmeVhac3dDLUFmdTNGUzgwZEliRDRUVmFKLW54alRjQ3VzXzlrTzNUUFluanZ4eUttM3RkSTdIZUZvZmhkSm12Q2tDRXBLNHpQZmh0bDczVzFFclpIRGJVM3hzOFJWUlhoUS1DbGVjUGpDWTlRcmV0ejB0YmN3Ymp0NVVkN2xJTzhFVDFTWld0b2pEemdZM25HWkRla0EtOWZWamJ3",
-      id: 17,
-    },
-    {
-      domain: ".youtube.com",
-      expirationDate: 1742756065,
-      hostOnly: false,
-      httpOnly: false,
-      name: "ST-xuwub9",
-      path: "/",
-      sameSite: "unspecified",
-      secure: false,
-      session: false,
-      storeId: "0",
-      value:
-        "session_logininfo=AFmmF2swRQIgNkm1EjG1GjVkfxFGciQrtyl2eNBd3D9EPw7fO7c-SXECIQDlg5wQKK5AU52VPkBeOzRZSrrsnWjCwClxi8nXExlFMg%3AQUQ3MjNmeVhac3dDLUFmdTNGUzgwZEliRDRUVmFKLW54alRjQ3VzXzlrTzNUUFluanZ4eUttM3RkSTdIZUZvZmhkSm12Q2tDRXBLNHpQZmh0bDczVzFFclpIRGJVM3hzOFJWUlhoUS1DbGVjUGpDWTlRcmV0ejB0YmN3Ymp0NVVkN2xJTzhFVDFTWld0b2pEemdZM25HWkRla0EtOWZWamJ3",
-      id: 18,
-    },
-  ];
- 
-  const agent = ytdl.createProxyAgent({
-    uri: "http://NMage0c0fdE5adu:OCsPzE59wpvj0LU@92.113.81.50:45262",requestTls:{
-      rejectUnauthorized: false,
-    }
-  });
-
   // Send current jukebox state when a user connects
   socket.emit("jukebox:state", {
     currentSong,
@@ -470,191 +191,91 @@ export function setupJukeboxHandlers(
         throw new Error("No se pudo extraer el ID del video");
       }
 
-      console.log(`Descargando canción de YouTube: ${videoId}`);
+      console.log(`Descargando audio de YouTube: ${videoId}`);
 
-      const info = await ytdl.getInfo(videoUrl, { agent});
+      // Generate unique filename for the MP3
+      const finalMp3File = path.join(MUSIC_DIR, `${videoId}_${Date.now()}.mp3`);
+      const publicMp3Path = `/public/music/${path.basename(finalMp3File)}`;
 
-      console.log("Formatos disponibles", info.formats.length);
+      // Get video info first to extract metadata
+      const videoInfo = await youtubeDl(videoUrl, {
+        dumpSingleJson: true,
+        noWarnings: true,
+        callHome: false,
+        preferFreeFormats: true,
+        youtubeSkipDashManifest: true,
+      }) as YouTubeDlResponse;
 
-      // Find 360p format with both audio and video
-      const format = info.formats.find(
-        (format) =>
-          format.hasAudio && format.hasVideo && format.qualityLabel === "360p"
-      );
+      // Download audio directly as MP3 using youtube-dl-exec
+      await youtubeDl(videoUrl, {
+        extractAudio: true,
+        audioFormat: "mp3",
+        audioQuality: 0, // Best quality
+        output: finalMp3File,
+        noWarnings: true,
+        callHome: false,
+        preferFreeFormats: true,
+        youtubeSkipDashManifest: true,
+        ...(ffmpegPath ? { ffmpegLocation: ffmpegPath } : {}), // Only add if not null
+      });
+  
 
-      if (!format) {
-        throw new Error("No se encontró un formato compatible para este video");
+      // Verify MP3 file exists and has content
+      if (!fs.existsSync(finalMp3File) || fs.statSync(finalMp3File).size === 0) {
+        throw new Error("La descarga de audio falló o el archivo está vacío");
       }
 
-      // Generate unique filenames
-      const tempVideoFile = path.join(TEMP_DIR, `${videoId}_${Date.now()}.mp4`);
-      const finalMp3File = path.join(MUSIC_DIR, `${videoId}_${Date.now()}.mp3`);
-      const publicMp3Path = `music/${path.basename(finalMp3File)}`;
+      console.log(`Descarga de audio completada: ${videoInfo.title}`);
 
-      // Download the video with the specific format
-      const videoStream = ytdl(videoUrl, {
-        format: format,
-        agent,
-      });
+      // Format duration
+      const durationInSeconds = videoInfo.duration;
+      const formattedDuration = formatDuration(durationInSeconds);
 
-      const videoWriteStream = fs.createWriteStream(tempVideoFile);
+      // Create song object
+      const song: Song = {
+        id: videoId,
+        title: videoInfo.title,
+        artist: videoInfo.uploader || "Desconocido",
+        duration: formattedDuration,
+        thumbnail: videoInfo.thumbnail || "",
+        url: videoUrl,
+        filePath: publicMp3Path, // Public URL path
+        addedBy: songData.addedBy || user.username,
+      };
 
-      let downloadError = false;
+      // Add to queue
+      songQueue.push(song);
 
-      // Handle video download errors
-      videoStream.on("error", (err) => {
-        console.error("Error downloading video:", err);
-        downloadError = true;
+      // Send system message to chat
+      const chatMessage = {
+        id: `system-jukebox-${Date.now()}`,
+        sender: "Sistema",
+        content: `${song.addedBy} ha añadido "${song.title}" a la cola de reproducción.`,
+        type: "system",
+        timestamp: Date.now(),
+        read: false,
+      };
 
-        // Clean up
-        if (fs.existsSync(tempVideoFile)) {
-          fs.unlinkSync(tempVideoFile);
-        }
+      io.emit("chat:message", chatMessage);
 
-        isProcessing = false;
-        io.emit("jukebox:processing", false);
+      // If no song is playing, start playing this one
+      if (!currentSong) {
+        startNextSong(io);
+      } else {
+        // Just update the queue for all clients
+        updateClientsWithQueueInfo(io);
+      }
 
-        if (callback) {
-          callback({
-            success: false,
-            error: "Error al descargar el video: " + err.message,
-          });
-        }
-      });
+      isProcessing = false;
+      io.emit("jukebox:processing", false);
 
-      videoWriteStream.on("error", (err) => {
-        console.error("Error writing video file:", err);
-        downloadError = true;
-
-        // Clean up
-        if (fs.existsSync(tempVideoFile)) {
-          fs.unlinkSync(tempVideoFile);
-        }
-
-        isProcessing = false;
-        io.emit("jukebox:processing", false);
-
-        if (callback) {
-          callback({
-            success: false,
-            error: "Error al guardar el video: " + err.message,
-          });
-        }
-      });
-
-      // Pipe video to file
-      videoStream.pipe(videoWriteStream);
-
-      // When video download is complete, convert to MP3
-      videoWriteStream.on("finish", () => {
-        if (downloadError) return;
-
-        console.log(
-          `Video descargado, convirtiendo a MP3: ${info.videoDetails.title}`
-        );
-
-        // Convert video to MP3 using ffmpeg
-        ffmpeg(tempVideoFile)
-          .noVideo()
-          .audioCodec("libmp3lame")
-          .audioBitrate(192)
-          .on("error", (err) => {
-            console.error("Error converting to MP3:", err);
-
-            // Clean up
-            if (fs.existsSync(tempVideoFile)) {
-              fs.unlinkSync(tempVideoFile);
-            }
-
-            isProcessing = false;
-            io.emit("jukebox:processing", false);
-
-            if (callback) {
-              callback({
-                success: false,
-                error: "Error al convertir a MP3: " + err.message,
-              });
-            }
-          })
-          .on("end", () => {
-            console.log(
-              `Conversión a MP3 completada: ${info.videoDetails.title}`
-            );
-
-            // Clean up temp video file
-            if (fs.existsSync(tempVideoFile)) {
-              fs.unlinkSync(tempVideoFile);
-            }
-
-            // Verify MP3 file exists and has content
-            if (
-              !fs.existsSync(finalMp3File) ||
-              fs.statSync(finalMp3File).size === 0
-            ) {
-              console.error("MP3 conversion failed or file is empty");
-
-              isProcessing = false;
-              io.emit("jukebox:processing", false);
-
-              if (callback) {
-                callback({
-                  success: false,
-                  error: "La conversión a MP3 falló o el archivo está vacío",
-                });
-              }
-              return;
-            }
-
-            // Create song object
-            const song: Song = {
-              id: videoId,
-              title: info.videoDetails.title,
-              artist: info.videoDetails.author.name,
-              duration: formatDuration(
-                parseInt(info.videoDetails.lengthSeconds)
-              ),
-              thumbnail: info.videoDetails.thumbnails[0]?.url || "",
-              url: videoUrl,
-              filePath: `/public/${publicMp3Path}`, // Public URL path
-              addedBy: songData.addedBy || user.username,
-            };
-
-            // Add to queue
-            songQueue.push(song);
-
-            // Send system message to chat
-            const chatMessage = {
-              id: `system-jukebox-${Date.now()}`,
-              sender: "Sistema",
-              content: `${song.addedBy} ha añadido "${song.title}" a la cola de reproducción.`,
-              type: "system",
-              timestamp: Date.now(),
-              read: false,
-            };
-
-            io.emit("chat:message", chatMessage);
-
-            // If no song is playing, start playing this one
-            if (!currentSong) {
-              startNextSong(io);
-            } else {
-              // Just update the queue for all clients
-              updateClientsWithQueueInfo(io);
-            }
-
-            isProcessing = false;
-            io.emit("jukebox:processing", false);
-
-            // Return success to the client
-            if (callback) {
-              callback({
-                success: true,
-                message: "Canción añadida a la cola",
-              });
-            }
-          })
-          .save(finalMp3File);
-      });
+      // Return success to the client
+      if (callback) {
+        callback({
+          success: true,
+          message: "Canción añadida a la cola"
+        });
+      }
     } catch (error) {
       console.error("Error al añadir canción:", error);
       isProcessing = false;
@@ -674,15 +295,10 @@ export function setupJukeboxHandlers(
 
   // Handle get state requests
   socket.on("jukebox:getState", () => {
-    socket.emit(
-      "jukebox:nowPlaying",
-      currentSong
-        ? {
-            ...currentSong,
-            startTime: currentSongStartTime,
-          }
-        : null
-    );
+    socket.emit("jukebox:nowPlaying", currentSong ? {
+      ...currentSong,
+      startTime: currentSongStartTime
+    } : null);
 
     socket.emit(
       "jukebox:queueUpdate",
@@ -700,20 +316,13 @@ export function setupJukeboxHandlers(
     socket.emit("jukebox:processing", isProcessing);
   });
 
-  // Handle song ended event - we'll keep this for redundancy
-  socket.on("jukebox:songEnded", () => {
-    console.log("Client reported song ended");
-    // We don't immediately start the next song here anymore
-    // The server timer will handle it
-  });
-
   // Handle sync request for clients joining mid-song
   socket.on("jukebox:sync", () => {
     if (currentSong && currentSongStartTime > 0) {
       // Calculate how far into the song we are
       const currentTime = Date.now();
       const elapsedTime = currentTime - currentSongStartTime;
-
+      
       socket.emit("jukebox:sync", {
         song: {
           id: currentSong.id,
@@ -726,7 +335,7 @@ export function setupJukeboxHandlers(
           addedBy: currentSong.addedBy,
         },
         elapsedTime: elapsedTime,
-        serverTime: currentTime,
+        serverTime: currentTime
       });
     }
   });
@@ -773,7 +382,6 @@ function startNextSong(io: Server) {
     // Record the start time
     currentSongStartTime = Date.now();
 
-    // Send system message about now
     // Send system message about now playing
     const chatMessage = {
       id: `system-jukebox-${Date.now()}`,
@@ -795,7 +403,7 @@ function startNextSong(io: Server) {
       url: currentSong.url,
       filePath: currentSong.filePath,
       addedBy: currentSong.addedBy,
-      startTime: currentSongStartTime, // Add this to sync clients
+      startTime: currentSongStartTime // Add this to sync clients
     });
 
     // Update queue info
@@ -807,15 +415,10 @@ function startNextSong(io: Server) {
 
     if (durationParts.length === 2) {
       // Format: MM:SS
-      durationMs =
-        (parseInt(durationParts[0]) * 60 + parseInt(durationParts[1])) * 1000;
+      durationMs = (parseInt(durationParts[0]) * 60 + parseInt(durationParts[1])) * 1000;
     } else if (durationParts.length === 3) {
       // Format: HH:MM:SS
-      durationMs =
-        (parseInt(durationParts[0]) * 3600 +
-          parseInt(durationParts[1]) * 60 +
-          parseInt(durationParts[2])) *
-        1000;
+      durationMs = (parseInt(durationParts[0]) * 3600 + parseInt(durationParts[1]) * 60 + parseInt(durationParts[2])) * 1000;
     }
 
     // Add a small buffer to ensure the song finishes playing
@@ -823,9 +426,7 @@ function startNextSong(io: Server) {
 
     // Set a server-side timer for the next song
     currentSongTimer = setTimeout(() => {
-      console.log(
-        `Server timer: Song "${currentSong?.title}" finished playing after ${durationMs}ms`
-      );
+      console.log(`Server timer: Song "${currentSong?.title}" finished playing after ${durationMs}ms`);
       startNextSong(io);
     }, durationMs);
   }
@@ -847,18 +448,20 @@ function updateClientsWithQueueInfo(io: Server) {
   );
 }
 
+// Helper function to format duration in seconds to MM:SS forma
+
 // Helper function to format duration in seconds to MM:SS format
 function formatDuration(seconds: number): string {
   if (seconds < 3600) {
     // Format as MM:SS
     const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
+    const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   } else {
     // Format as HH:MM:SS
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = seconds % 60;
+    const remainingSeconds = Math.floor(seconds % 60);
     return `${hours}:${minutes.toString().padStart(2, "0")}:${remainingSeconds
       .toString()
       .padStart(2, "0")}`;
