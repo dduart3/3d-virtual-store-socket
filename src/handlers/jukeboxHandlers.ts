@@ -459,6 +459,8 @@ export function setupJukeboxHandlers(
 
       // Get video info
       const info = await ytdl.getInfo(videoUrl, { agent });
+
+      console.log("Información del video:", info);
      
       // Find 360p format with both audio and video
       const format = info.formats.find(format =>
