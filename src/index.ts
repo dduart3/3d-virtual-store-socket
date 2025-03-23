@@ -9,6 +9,7 @@ import { setupOnlineUsersHandlers } from './handlers/onlineUsersHandlers';
 import { UserManager } from './managers/UserManager';
 import compression from 'compression';
 import { setupDoorHandlers } from './handlers/doorHandlers';
+import { setupJukeboxHandlers } from './handlers/jukeboxHandlers';
 
 // Load environment variables
 dotenv.config();
@@ -17,6 +18,7 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(compression() as any); // Add compression for HTTP responses
+app.use('/public', express.static('public'));
 
 const server = http.createServer(app);
 
@@ -107,6 +109,7 @@ io.on('connection', (socket) => {
   setupAvatarHandlers(io, socket, userManager);
   setupOnlineUsersHandlers(io, socket, userManager);
   setupDoorHandlers(io, socket, userManager);
+  setupJukeboxHandlers(io, socket, userManager);
   
   // Handle disconnection
   socket.on('disconnect', () => {
