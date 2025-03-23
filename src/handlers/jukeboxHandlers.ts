@@ -459,21 +459,17 @@ export function setupJukeboxHandlers(
 
       // Get video info
       const info = await ytdl.getInfo(videoUrl, { agent });
-
-      console.log("Información del video:", info);
      
       // Find 360p format with both audio and video
-      const format = info.formats.find(format =>
-        format.hasAudio &&
-        format.hasVideo &&
-        format.qualityLabel === '360p'
-      );
+      const format = ytdl.chooseFormat(info.formats, { 
+        quality: 'highestaudio',
+        filter: 'audioonly' 
+      });
      
       if (!format) {
         throw new Error("No se encontró un formato compatible para este video");
       }
      
-      console.log("Formato seleccionado:", format.qualityLabel);
      
       // Generate unique filenames
       const tempVideoFile = path.join(TEMP_DIR, `${videoId}_${Date.now()}.mp4`);
