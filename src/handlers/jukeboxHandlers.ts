@@ -44,6 +44,7 @@ let songQueue: Song[] = [];
 let isProcessing = false;
 let currentSongStartTime = 0;
 let currentSongTimer: NodeJS.Timeout | null = null;
+let currentVolume = 0.2; // Default volume (50%)
 
 // For search results
 interface SearchResult {
@@ -317,6 +318,7 @@ export function setupJukeboxHandlers(
     );
 
     socket.emit("jukebox:processing", isProcessing);
+    socket.emit("jukebox:volumeChange", { volume: currentVolume });
   });
 
   // Handle sync request for clients joining mid-song
@@ -345,8 +347,16 @@ export function setupJukeboxHandlers(
 
   // Handle volume change
   socket.on("jukebox:setVolume", (data: { volume: number }) => {
+    // Store the current volume
+    currentVolume = data.volume;
+    
     // Broadcast volume change to all clients
-    io.emit("jukebox:volumeChange", { volume: data.volume });
+    io.emit("jukebox:volumeChange", { volume: currentVolume });
+  });
+
+  socket.on("jukebox:getVolume", () => {
+    // Send the current volume to the client that requested it
+    socket.emit("jukebox:volumeChange", { volume: currentVolume });
   });
 }
 

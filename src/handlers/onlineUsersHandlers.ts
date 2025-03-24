@@ -13,7 +13,9 @@ export function setupOnlineUsersHandlers(io: Server, socket: Socket, userManager
     // Send online users to the requesting client
     socket.emit('online_users', users);
   });
-  
-  // You could add more online user related handlers here
-  // For example, user status updates, user profile updates, etc.
+
+  socket.on("users:getList", () => {
+    // Send the current users list to the requesting client
+    socket.emit("users:initial", userManager.getAllUsers());
+  });
 }
