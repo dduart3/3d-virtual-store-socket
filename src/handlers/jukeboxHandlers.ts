@@ -5,8 +5,7 @@ import fs from "fs";
 import path from "path";
 import youtubeDl from "youtube-dl-exec";
 import ffmpegPath from "ffmpeg-static";
-const cookiesFile = path.join(__dirname, '../../cookies.txt');
-
+const cookiesFile = path.join(__dirname, "../../cookies.txt");
 
 // Create music directory if it doesn't exist
 const MUSIC_DIR = path.join(__dirname, "../../public/music");
@@ -167,9 +166,6 @@ export function setupJukeboxHandlers(
       const user = userManager.getUserBySocketId(socket.id);
       if (!user) return;
 
-      isProcessing = true;
-      io.emit("jukebox:processing", true);
-
       console.log(`${user.username} está añadiendo una canción a la cola`);
 
       let videoId: string;
@@ -193,43 +189,72 @@ export function setupJukeboxHandlers(
         throw new Error("No se pudo extraer el ID del video");
       }
 
-      console.log(`Descargando audio de YouTube: ${videoId}`);
+      // Generate filename based only on videoId
+      const mp3Filename = `${videoId}.mp3`;
+      const finalMp3File = path.join(MUSIC_DIR, mp3Filename);
+      const publicMp3Path = `/public/music/${mp3Filename}`;
 
-      // Generate unique filename for the MP3
-      const finalMp3File = path.join(MUSIC_DIR, `${videoId}_${Date.now()}.mp3`);
-      const publicMp3Path = `/public/music/${path.basename(finalMp3File)}`;
+      // Check if the file already exists
+      const fileExists =
+        fs.existsSync(finalMp3File) && fs.statSync(finalMp3File).size > 0;
 
-      // Get video info first to extract metadata
-      const videoInfo = await youtubeDl(videoUrl, {
-        dumpSingleJson: true,
-        noWarnings: true,
-        callHome: false,
-        preferFreeFormats: true,
-        youtubeSkipDashManifest: true,
-        cookies: cookiesFile
-      }) as YouTubeDlResponse;
+      let videoInfo: YouTubeDlResponse;
 
-      // Download audio directly as MP3 using youtube-dl-exec
-      await youtubeDl(videoUrl, {
-        extractAudio: true,
-        audioFormat: "mp3",
-        audioQuality: 0, // Best quality
-        output: finalMp3File,
-        noWarnings: true,
-        callHome: false,
-        preferFreeFormats: true,
-        youtubeSkipDashManifest: true,
-        cookies: cookiesFile,
-        ...(ffmpegPath ? { ffmpegLocation: ffmpegPath } : {}), // Only add if not null
-      });
-  
+      if (fileExists) {
+        console.log(`El archivo ya existe para ${videoId}, omitiendo descarga`);
 
-      // Verify MP3 file exists and has content
-      if (!fs.existsSync(finalMp3File) || fs.statSync(finalMp3File).size === 0) {
-        throw new Error("La descarga de audio falló o el archivo está vacío");
+        // We still need to get video info for metadata
+        isProcessing = true;
+        io.emit("jukebox:processing", true);
+
+        videoInfo = (await youtubeDl(videoUrl, {
+          dumpSingleJson: true,
+          noWarnings: true,
+          callHome: false,
+          preferFreeFormats: true,
+          youtubeSkipDashManifest: true,
+          cookies: cookiesFile,
+        })) as YouTubeDlResponse;
+      } else {
+        console.log(`Descargando audio de YouTube: ${videoId}`);
+
+        isProcessing = true;
+        io.emit("jukebox:processing", true);
+
+        // Get video info first to extract metadata
+        videoInfo = (await youtubeDl(videoUrl, {
+          dumpSingleJson: true,
+          noWarnings: true,
+          callHome: false,
+          preferFreeFormats: true,
+          youtubeSkipDashManifest: true,
+          cookies: cookiesFile,
+        })) as YouTubeDlResponse;
+
+        // Download audio directly as MP3 using youtube-dl-exec
+        await youtubeDl(videoUrl, {
+          extractAudio: true,
+          audioFormat: "mp3",
+          audioQuality: 0, // Best quality
+          output: finalMp3File,
+          noWarnings: true,
+          callHome: false,
+          preferFreeFormats: true,
+          youtubeSkipDashManifest: true,
+          cookies: cookiesFile,
+          ...(ffmpegPath ? { ffmpegLocation: ffmpegPath } : {}), // Only add if not null
+        });
+
+        // Verify MP3 file exists and has content
+        if (
+          !fs.existsSync(finalMp3File) ||
+          fs.statSync(finalMp3File).size === 0
+        ) {
+          throw new Error("La descarga de audio falló o el archivo está vacío");
+        }
+
+        console.log(`Descarga de audio completada: ${videoInfo.title}`);
       }
-
-      console.log(`Descarga de audio completada: ${videoInfo.title}`);
 
       // Format duration
       const durationInSeconds = videoInfo.duration;
@@ -277,7 +302,9 @@ export function setupJukeboxHandlers(
       if (callback) {
         callback({
           success: true,
-          message: "Canción añadida a la cola"
+          message: fileExists
+            ? "Canción añadida a la cola (desde caché)"
+            : "Canción añadida a la cola",
         });
       }
     } catch (error) {
@@ -299,10 +326,15 @@ export function setupJukeboxHandlers(
 
   // Handle get state requests
   socket.on("jukebox:getState", () => {
-    socket.emit("jukebox:nowPlaying", currentSong ? {
-      ...currentSong,
-      startTime: currentSongStartTime
-    } : null);
+    socket.emit(
+      "jukebox:nowPlaying",
+      currentSong
+        ? {
+            ...currentSong,
+            startTime: currentSongStartTime,
+          }
+        : null
+    );
 
     socket.emit(
       "jukebox:queueUpdate",
@@ -327,7 +359,7 @@ export function setupJukeboxHandlers(
       // Calculate how far into the song we are
       const currentTime = Date.now();
       const elapsedTime = currentTime - currentSongStartTime;
-      
+
       socket.emit("jukebox:sync", {
         song: {
           id: currentSong.id,
@@ -340,7 +372,7 @@ export function setupJukeboxHandlers(
           addedBy: currentSong.addedBy,
         },
         elapsedTime: elapsedTime,
-        serverTime: currentTime
+        serverTime: currentTime,
       });
     }
   });
@@ -349,7 +381,7 @@ export function setupJukeboxHandlers(
   socket.on("jukebox:setVolume", (data: { volume: number }) => {
     // Store the current volume
     currentVolume = data.volume;
-    
+
     // Broadcast volume change to all clients
     io.emit("jukebox:volumeChange", { volume: currentVolume });
   });
@@ -416,7 +448,7 @@ function startNextSong(io: Server) {
       url: currentSong.url,
       filePath: currentSong.filePath,
       addedBy: currentSong.addedBy,
-      startTime: currentSongStartTime // Add this to sync clients
+      startTime: currentSongStartTime, // Add this to sync clients
     });
 
     // Update queue info
@@ -428,10 +460,15 @@ function startNextSong(io: Server) {
 
     if (durationParts.length === 2) {
       // Format: MM:SS
-      durationMs = (parseInt(durationParts[0]) * 60 + parseInt(durationParts[1])) * 1000;
+      durationMs =
+        (parseInt(durationParts[0]) * 60 + parseInt(durationParts[1])) * 1000;
     } else if (durationParts.length === 3) {
       // Format: HH:MM:SS
-      durationMs = (parseInt(durationParts[0]) * 3600 + parseInt(durationParts[1]) * 60 + parseInt(durationParts[2])) * 1000;
+      durationMs =
+        (parseInt(durationParts[0]) * 3600 +
+          parseInt(durationParts[1]) * 60 +
+          parseInt(durationParts[2])) *
+        1000;
     }
 
     // Add a small buffer to ensure the song finishes playing
@@ -439,7 +476,9 @@ function startNextSong(io: Server) {
 
     // Set a server-side timer for the next song
     currentSongTimer = setTimeout(() => {
-      console.log(`Server timer: Song "${currentSong?.title}" finished playing after ${durationMs}ms`);
+      console.log(
+        `Server timer: Song "${currentSong?.title}" finished playing after ${durationMs}ms`
+      );
       startNextSong(io);
     }, durationMs);
   }
