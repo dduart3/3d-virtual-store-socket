@@ -214,6 +214,8 @@ export function setupJukeboxHandlers(
           preferFreeFormats: true,
           youtubeSkipDashManifest: true,
           cookies: cookiesFile,
+          noCheckCertificates: true,
+          addHeader: ['referer:youtube.com', 'user-agent:googlebot']
         })) as YouTubeDlResponse;
       } else {
         console.log(`Descargando audio de YouTube: ${videoId}`);
